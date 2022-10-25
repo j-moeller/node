@@ -449,6 +449,7 @@ void CollectBlockCoverageInternal(CoverageFunction* function,
   // Rewrite all singletons (created e.g. by continuations and unconditional
   // control flow) to ranges.
   RewritePositionSingletonsToRanges(function);
+  return;
 
   // Merge nested and consecutive ranges with identical counts.
   // Note that it's necessary to merge duplicate ranges prior to merging nested
