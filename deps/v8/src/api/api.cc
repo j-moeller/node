@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "include/v8-callbacks.h"
+#include "include/v8-coverage.h"
 #include "include/v8-cppgc.h"
 #include "include/v8-date.h"
 #include "include/v8-embedder-state-scope.h"
@@ -10713,6 +10714,49 @@ TryToCopyAndConvertArrayToCppBuffer<CTypeInfoBuilder<double>::Build().GetId(),
       CTypeInfo(CTypeInfo::Type::kFloat64, CTypeInfo::SequenceType::kIsSequence)
           .GetId(),
       double>(src, dst, max_length);
+}
+
+FastCoverageReport V8_EXPORT CollectFastCoverage(Isolate* isolate) {
+  debug::Coverage coverage = debug::Coverage::CollectPrecise(isolate);
+
+  FastCoverageReport report;
+
+  for (size_t i = 0; i < coverage.ScriptCount(); i++) {
+    debug::Coverage::ScriptData script_data = coverage.GetScriptData(i);
+    Local<debug::Script> script = script_data.GetScript();
+
+    // Skip unnamed scripts.
+    Local<String> name;
+    if (!script->Name().ToLocal(&name)) {
+      continue;
+    }
+
+    ScriptCoverage scriptCov(script->Id(), name);
+
+    for (size_t j = 0; j < script_data.FunctionCount(); j++) {
+      debug::Coverage::FunctionData function_data =
+          script_data.GetFunctionData(j);
+
+      Local<String> name;
+      if (!function_data.Name().ToLocal(&name)) {
+        continue;
+      }
+
+      FunctionCoverage funcCov(name);
+
+      // Process inner blocks.
+      for (size_t k = 0; k < function_data.BlockCount(); k++) {
+        debug::Coverage::BlockData block_data = function_data.GetBlockData(k);
+        BlockCoverage blockCov(block_data.StartOffset(), block_data.EndOffset(),
+                               block_data.Count());
+        funcCov.push_back(blockCov);
+      }
+      scriptCov.push_back(funcCov);
+    }
+
+    report.push_back(scriptCov);
+  }
+  return report;
 }
 
 }  // namespace v8
